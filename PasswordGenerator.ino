@@ -2,6 +2,10 @@
 
    ATtiny85 @ 8 MHz (internal oscillator; BOD disabled)
 
+   CC BY 4.0
+   Licensed under a Creative Commons Attribution 4.0 International license:
+   http://creativecommons.org/licenses/by/4.0/
+
    Adapted from https://halfbyteblog.wordpress.com/2015/11/29/using-a-max7219-8x8-led-matrix-with-an-attiny85-like-trinket-or-digispark/
    by Michael Borcherds, Feb 2018
 
@@ -14,9 +18,6 @@
    Each digit has about 4.5 bits of entropy so total password has about 16 * 4.5 = 72 bits
 
    Connect the 8-digit 7-segment display to PB0 (DIN), PB1 (CS), PB2 (CLK)
-
-   Runs fine from a CR2032 3V cell battery
-
 
 */
 
@@ -73,13 +74,14 @@ uint8_t LETTER_U =   0b00011100;
 uint8_t LETTER_Y =   0b00111011;
 uint8_t CHAR_PLING =   0b10110000;
 uint8_t CHAR_MINUS =  0b00000001;
+uint8_t CHAR_UNDERSCORE =  0b00001000;
 
 
 uint8_t HEXDIGITS[16] = { ZERO, ONE, TWO, THREE, FOUR, FIVE, SIX, SEVEN, EIGHT, NINE, HEXA, HEXB, HEXC, HEXD, HEXE, HEXF };
-uint8_t CHARACTERS[27] = { ZERO, ONE, TWO, THREE, FOUR, FIVE, SIX, SEVEN, EIGHT, NINE, HEXA, HEXB, HEXC, HEXD, HEXE, HEXF,LETTER_H,LETTER_I,LETTER_J,LETTER_P,LETTER_R,LETTER_S,LETTER_U,LETTER_Y, DOT, CHAR_PLING, CHAR_MINUS };
+uint8_t CHARACTERS[28] = { ZERO, ONE, TWO, THREE, FOUR, FIVE, SIX, SEVEN, EIGHT, NINE, HEXA, HEXB, HEXC, HEXD, HEXE, HEXF,LETTER_H,LETTER_I,LETTER_J,LETTER_P,LETTER_R,LETTER_S,LETTER_U,LETTER_Y, DOT, CHAR_PLING, CHAR_MINUS, CHAR_UNDERSCORE };
 
 // "rEAdy..."
-uint8_t test1[8] = {
+uint8_t ready[8] = {
     DOT,
     DOT,
     DOT,
@@ -88,6 +90,42 @@ uint8_t test1[8] = {
     HEXA,
     HEXE,
     LETTER_R,
+};
+
+// "E..rOpy."
+uint8_t entropy[8] = {
+    DOT,
+    LETTER_Y,
+    LETTER_P,
+    LETTER_O,
+    LETTER_R,
+    DOT,
+    DOT,
+    HEXE,
+};
+
+// "pASS.Ord"
+uint8_t password[8] = {
+    HEXD,
+    LETTER_R,
+    LETTER_O,
+    DOT,
+    LETTER_S,
+    LETTER_S,
+    HEXA,
+    LETTER_P,
+};
+
+// "ErrOr..."
+uint8_t error[8] = {
+    DOT,
+    DOT,
+    DOT,
+    LETTER_R,
+    LETTER_O,
+    LETTER_R,
+    LETTER_R,
+    HEXE,
 };
 
 void spi_send(uint8_t data)
@@ -179,9 +217,28 @@ void set_pixel(uint8_t r, uint8_t c, uint8_t value)
 uint8_t display1[16] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
 uint8_t display2[8] = {0,0,0,0,0,0,0,0};
 
+void displayHexDigit(uint32_t digit, uint32_t timems) {
+    uint8_t hexdigit[8] = {
+        HEXDIGITS[digit & 0x0f],
+        HEXDIGITS[(digit >> 4) & 0x0f],
+        HEXDIGITS[(digit >> 8) & 0x0f],
+        HEXDIGITS[(digit >> 12) & 0x0f],
+        HEXDIGITS[(digit >> 16) & 0x0f],
+        HEXDIGITS[(digit >> 20) & 0x0f],
+        HEXDIGITS[(digit >> 24) & 0x0f],
+        HEXDIGITS[(digit >> 28) & 0x0f],
+
+    };
+
+    image(hexdigit);
+    update_display();
+    //delay(timems);
+}
 
 void setup()
 {
+    Entropy.initialize();
+
     // display "rEAdy..." and
     // and flash LED on PB4
 
@@ -189,26 +246,50 @@ void setup()
     pinMode(PB4,OUTPUT);
     digitalWrite(PB4,HIGH);
 
-    image(test1);
+    image(ready);
     update_display();
     digitalWrite(PB4,LOW);
     delay(250);
 
-    Entropy.initialize();
+    /* for testing, display entropy as hex
+      image(entropy);
+      update_display();
+      delay(1000);
 
+      uint32_t seed = Entropy.random();
+      displayHexDigit(seed, 1000);
 
+      seed = Entropy.random();
+      displayHexDigit(seed, 1000);
+
+      seed = Entropy.random();
+      displayHexDigit(seed, 1000);
+      seed = Entropy.random();
+      displayHexDigit(seed, 1000);
+      seed = Entropy.random();
+      displayHexDigit(seed, 1000);
+      */
+
+    // generate 16 characters for the password
     for (int i = 0 ; i < 16 ; i++) {
-        randomSeed(Entropy.random());
+
+        // make scrolling smooth
+        // also gives time to "make" entropy
+        delay(200);
 
         // cool scrolling
         for (int j = 15 ; j >=1 ; j--) {
             display1[j] = display1[j-1];
         }
 
-        display1[0] = CHARACTERS[random(0,27)];
+        while (Entropy.available() == 0) {
+            // wait for enough entropy
+        }
+        display1[0] = CHARACTERS[Entropy.random(0,28)];
 
         image(display1);
         update_display();
+
     }
 
     // split into two 8-digit parts
