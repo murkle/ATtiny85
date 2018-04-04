@@ -1,0 +1,266 @@
+<html>
+<head>
+</head>
+<body>
+
+<script>
+
+// adapted from http://www.lispology.com/show?10QY
+// more details http://www.technoblogy.com/show?NGM
+
+// values from my eBay purchase
+// should give best as  [680, 100, 100, 680, 270, 150, 150]
+// takes c. 10hours to run
+// gap = 
+//var target = [10, 22, 47, 100, 150, 200, 220, 270, 330,470, 510, 680, 1000, 2000, 2200, 3300, 4700, 5100, 6800, 10000, 20000, 47000, 51000, 68000, 100000,220000, 300000, 470000, 680000, 1000000];
+
+//var target = [100, 101, 150, 151, 270, 271, 680, 681];
+
+// E6 series
+// gap = 1024*0.023737373737373724 
+// = 24.3
+// var target = [1.0,1.5,2.2,3.3,4.7,6.8];
+
+// E6 series double range
+// best is [33, 3.3, 3.3, 33, 10, 10, 4.7] 
+// gap = 0.027637304480771507*1024
+// gap = 28.300599788310024
+//var target = [1.0,1.5,2.2,3.3,4.7,6.8,10,15,22,33,47,68];
+
+// E12 series
+//best is 0.02124225206611563 (7) [4.7, 1, 1, 1.2, 3.9, 2.7, 1.5]
+//0.02124225206611563*1024
+//21.752066115702405
+//var target = [1.0, 1.2, 1.5,1.8, 2.2, 2.7, 3.3, 3.9, 4.7];
+
+// E6 values double range
+// http://www.lispology.com/show?10QY
+//var target = [10, 15, 22, 33, 47, 68, 100, 150, 220, 330, 470, 680, 1000, 1500, 2200, 3300, 4700, 6800];
+// shorter version, gives same answer (always?)
+var target = [10, 15, 22, 33, 47, 68, 100, 150, 220, 330];
+// should give best values of [330, 33, 33, 330, 100, 100, 47] 
+// or (slightly less good) [150 15 15 150 47 47 22] with Math.round(1024 * val) in calculation
+
+target = JSON.parse("[" + prompt("Please enter resistor values", target) + "]");
+
+
+var n = target.length;
+
+var nRows = 5;
+var nCols = 5;
+
+var best = [];
+var bestMinGap = -1;
+
+var list = [];
+
+
+function sortNumber(a,b) {
+    return a - b;
+}
+
+// https://stackoverflow.com/questions/4683539/variable-amount-of-nested-for-loops/4694438#4694438
+function allPossibleCombinations(lengths, fn) {
+  var n = lengths.length;
+
+  var indices = [];
+  for (var i = n; --i >= 0;) {
+    if (lengths[i] === 0) { return; }
+    if (lengths[i] !== (lengths[i] & 0x7ffffffff)) { throw new Error(); }
+    indices[i] = 0;
+  }
+
+  while (true) {
+    fn.apply(null, indices);
+    // Increment indices.
+    ++indices[n - 1];
+    for (var j = n; --j >= 0 && indices[j] === lengths[j];) {
+      if (j === 0) { return; }
+      indices[j] = 0;
+      ++indices[j - 1];
+    }
+  }
+}
+
+var arr = [];
+for (var i = 0 ; i < nRows + nCols - 1 ; i++) {
+	arr[i] = target.length;
+}
+
+//console.log(arr);
+
+allPossibleCombinations(arr, checkValues);
+
+
+
+var lastPrint = -1;
+
+function checkValues() {
+
+// show something is happening for a long calculation
+if (arguments[0] != lastPrint) {
+	lastPrint = arguments[0];
+	console.log("progress", arguments);
+}
+
+var aa = target[arguments[0]];
+
+list = [];
+
+var rowCount = 0
+for (var row = 0 ; row < nRows ; row++) {
+	var colCount = 0;
+	for (col = 0 ; col < nCols ; col++) {
+		
+		list.push((rowCount + colCount) / (rowCount + colCount + aa));
+		colCount += target[arguments[nRows + col]];
+	
+	}
+	rowCount += target[arguments[1 + row]]
+}
+
+
+/* old version for 4x4 grid for reference
+
+var aa = target[arguments[0]];
+var bb = target[arguments[1]];
+var cc = target[arguments[2]];
+var dd = target[arguments[3]];
+var ee = target[arguments[4]];
+var ff = target[arguments[5]];
+var gg = target[arguments[6]];
+
+list.push((bb + cc + dd + ee + ff + gg) / ( aa + bb + cc + dd + ee + ff + gg));
+list.push((bb + cc + ee + ff + gg) / ( aa + bb + cc + ee + ff + gg));
+list.push((bb + ee + ff + gg) / ( aa + bb + ee + ff + gg));
+list.push((ee + ff + gg) / ( aa + ee + ff + gg));
+
+list.push((bb + cc + dd + ff + gg) / ( aa + bb + cc + dd + ff + gg));
+list.push((bb + cc + ff + gg) / ( aa + bb + cc + ff + gg));
+list.push((bb + ff + gg) / ( aa + bb + ff + gg));
+list.push((ff + gg) / ( aa + ff + gg));
+
+list.push((bb + cc + dd + gg) / ( aa + bb + cc + dd + gg));
+list.push((bb + cc + gg) / ( aa + bb + cc + gg));
+list.push((bb + gg) / ( aa + bb + gg));
+list.push((gg) / ( aa + gg));
+
+list.push((bb + cc + dd) / ( aa + bb + cc + dd));
+list.push((bb + cc) / (+ aa + bb + cc));
+list.push((bb) / (aa + bb));
+list.push(0 / (aa));
+*/
+
+list.sort(sortNumber);
+
+var minGap = 10000000000000;
+for (var i = 0 ; i < list.length - 1 ; i++) {
+
+var gap = list[i+1] - list[i];
+if (gap < minGap) {
+	minGap = gap;
+}
+
+}
+
+//console.log("minGap", minGap);
+
+if (minGap > bestMinGap) {
+
+bestMinGap = minGap;
+
+
+//best = [aa,bb,cc,dd,ee,ff,gg];
+for (var i = 0 ; i < nRows ; i++) {
+	best[i] = target[arguments[i]];
+}
+
+// need to reverse last half of array for some reason compared to the original method
+// TODO: find out what's going on
+for (var i = 0 ; i < nCols - 1 ; i++) {
+	best[nRows + i] = target[arguments[nRows + nCols - 2 - i]];
+}
+
+console.log("found new best", bestMinGap, list, best);
+
+}
+
+}
+
+document.write("best gap is " +  bestMinGap*1024)
+document.write("values: " + best);
+
+/* old code
+
+for (var a = 0 ; a < n ; a++) {
+console.log("a", a);
+for (var b = 0 ; b < n ; b++) {
+for (var c = 0 ; c < n ; c++) {
+for (var d = 0 ; d < n ; d++) {
+for (var e = 0 ; e < n ; e++) {
+for (var f = 0 ; f < n ; f++) {
+for (var g = 0 ; g < n ; g++) {
+
+var aa = target[a];
+var bb = target[b];
+var cc = target[c];
+var dd = target[d];
+var ee = target[e];
+var ff = target[f];
+var gg = target[g];
+
+
+
+//var list = [aa+bb+cc+dd+ee+ff, aa+bb+cc+ee+ff, aa+bb+cc+ff, aa+bb+cc, aa+bb+dd+ee+ff, aa+bb+ee+ff, aa+bb+ff, aa+bb, aa+dd+ee+ff, aa+ee+ff, aa+ff, aa, dd+ee+ff, ee+ff, ff, 0].sort(sortNumber);
+
+list = [];
+
+list.push((bb + cc + dd + ee + ff + gg) / ( aa + bb + cc + dd + ee + ff + gg));
+list.push((bb + cc + ee + ff + gg) / ( aa + bb + cc + ee + ff + gg));
+list.push((bb + ee + ff + gg) / ( aa + bb + ee + ff + gg));
+list.push((ee + ff + gg) / ( aa + ee + ff + gg));
+
+list.push((bb + cc + dd + ff + gg) / ( aa + bb + cc + dd + ff + gg));
+list.push((bb + cc + ff + gg) / ( aa + bb + cc + ff + gg));
+list.push((bb + ff + gg) / ( aa + bb + ff + gg));
+list.push((ff + gg) / ( aa + ff + gg));
+
+list.push((bb + cc + dd + gg) / ( aa + bb + cc + dd + gg));
+list.push((bb + cc + gg) / ( aa + bb + cc + gg));
+list.push((bb + gg) / ( aa + bb + gg));
+list.push((gg) / ( aa + gg));
+
+list.push((bb + cc + dd) / ( aa + bb + cc + dd));
+list.push((bb + cc) / (+ aa + bb + cc));
+list.push((bb) / (aa + bb));
+list.push(0);
+
+list.sort(sortNumber);
+
+var minGap = 10000000000000;
+for (var i = 0 ; i < list.length - 1 ; i++) {
+
+var gap = list[i+1] - list[i];
+if (gap < minGap) {
+	minGap = gap;
+}
+
+}
+
+//console.log("minGap", minGap);
+
+if (minGap > bestMinGap) {
+
+bestMinGap = minGap;
+best = [aa,bb,cc,dd,ee,ff,gg];
+console.log("found new best", bestMinGap, list, best);
+
+}
+
+}}}}}}} */
+
+
+</script>
+
+</body>
+</html>
